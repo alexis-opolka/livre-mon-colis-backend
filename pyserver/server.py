@@ -1,7 +1,7 @@
 from fastapi import FastAPI, WebSocket
 from fastapi.responses import JSONResponse
 
-from responses import BASE_RESPONSE, IS_USER_CONNECTED
+from pyserver.responses import BASE_RESPONSE, IS_USER_CONNECTED
 
 app = FastAPI()
 

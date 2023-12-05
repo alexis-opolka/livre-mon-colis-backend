@@ -1,0 +1,62 @@
+name: livre-mon-colis
+
+services:
+
+  mongo:
+    container_name: mongodb-server
+    image: mongo
+    restart: always
+    expose:
+      - 27017:27017
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: root
+    networks:
+      livre-mon-colis-net:
+        ipv4_address: 172.168.200.110
+    hostname: mongodb.livre-mon-colis.com
+
+  mongo-express:
+    container_name: mongo-express-webserver
+    image: mongo-express
+    restart: always
+    ports:
+      - 8081:8081
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: root
+      ME_CONFIG_MONGODB_ADMINPASSWORD: root
+      ME_CONFIG_MONGODB_URL: mongodb://root:root@mongo:27017/
+    networks:
+      livre-mon-colis-net:
+        ipv4_address: 172.168.200.20
+    hostname: express.livre-mon-colis.com
+
+  python-backend:
+    container_name: pyserver
+    build: pyserver/.
+    image: pyserver
+    restart: always
+    ports:
+      - 8000:8000
+    networks:
+      livre-mon-colis-net:
+        ipv4_address: 172.168.200.10
+    hostname: pyserver.livre-mon-colis.com
+
+  webserver:
+    container_name: webserver-nginx
+    image: nginx
+    restart: always
+    ports:
+      - 8080:8080
+    networks:
+      livre-mon-colis-net:
+        ipv4_address: 172.168.200.100
+    hostname: livre-mon-colis.com
+
+networks:
+  livre-mon-colis-net:
+    ipam:
+      driver: bridge
+      config:
+        - subnet: 172.168.200.0/24
