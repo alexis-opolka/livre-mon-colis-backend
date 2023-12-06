@@ -57,6 +57,6 @@ services:
 networks:
   livre-mon-colis-net:
     ipam:
-      driver: bridge
+      driver: default
       config:
         - subnet: 172.168.200.0/24
