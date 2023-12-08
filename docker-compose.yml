@@ -45,7 +45,7 @@ services:
 
   webserver:
     container_name: webserver-nginx
-    image: nginx
+    image: nginx ### It should become the Docker Image from NextJS
     restart: always
     ports:
       - 8080:8080
@@ -53,6 +53,20 @@ services:
       livre-mon-colis-net:
         ipv4_address: 172.168.200.100
     hostname: livre-mon-colis.com
+
+  ### Replicata Services
+  ### They are made to be part of the test environment and are as such not production ready
+  test-backend:
+    container_name: pyserver-test
+    build: pyserver/test/
+    image: pyserver-test
+    restart: always
+    ports:
+      - 8000:8000
+    networks:
+      livre-mon-colis-net:
+        ipv4_address: 172.168.200.200
+    hostname: pyserver-test.livre-mon-colis.com
 
 networks:
   livre-mon-colis-net:
