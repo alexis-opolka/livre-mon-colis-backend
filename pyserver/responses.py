@@ -1,18 +1,3 @@
-from pymongo import MongoClient
-def get_database():
- 
-   # Provide the mongodb atlas url to connect python to mongodb using pymongo
-   CONNECTION_STRING = "mongodb+srv://user:pass@cluster.mongodb.net/myFirstDatabase"
- 
-   # Create a connection using MongoClient. You can import MongoClient or use pymongo.MongoClient
-   client = MongoClient(CONNECTION_STRING)
- 
-   # Create the database for our example (we will use the same database throughout the tutorial
-   return client['user_shopping_list']
-
-# Get the database
-dbname = get_database()
-
 BASE_RESPONSE = {
     "status": 200,
     "content": "Hello World, I'm the Backend for Livre Mon Colis"
@@ -22,4 +7,59 @@ BASE_RESPONSE = {
 IS_USER_CONNECTED = {
     "status": 200,
     "content": ""
+}
+
+COLIS_RESPONSE = {
+  "id": "6573183120d499455eedda44",
+  "weight": 0,
+  "dimension": {
+    "height": 0,
+    "width": 0,
+    "length": 0
+  },
+  "state": {
+    "wrapped": {
+      "state": False,
+      "timestamp": None
+    },
+    "storage-arrival": {
+      "state": False,
+      "timestamp": None
+    },
+    "storage-departure": {
+      "state": False,
+      "timestamp": None
+    },
+    "delivery": {
+      "state": False,
+      "timestamp": None
+    },
+    "received": {
+      "state": False,
+      "timestamp": None
+    }
+  }
+}
+
+DELIVERY_RESPONSE = {
+  "id": "",
+  "name": "",
+  "vehicle": {
+    "id": "65731bb120d499455eedda46",
+    "gps": ""
+  },
+  "packages": [],
+  "is-working": True
+}
+
+CLIENT_RESPONSE = {
+  "name": "",
+  "address": "",
+  "packages": []
+}
+
+VENDOR_RESPONSE = {
+  "name": "",
+  "collection": {},
+  "packages": []
 }

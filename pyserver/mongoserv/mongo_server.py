@@ -6,6 +6,10 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from pymongo.server_api import ServerApi
 from dotenv import load_dotenv
 
+from connections.setter.database import createDB, deleteDB
+from connections.setter.collections import createCollection, insertIntoCollection, listCurrentCollections
+from connections.setter.users import createUser
+
 load_dotenv()
 
 DEBUG = True
@@ -13,7 +17,7 @@ DEBUG = True
 if not DEBUG:
     MONGODB_URI = os.environ['MONGODB_URI']
 else:
-    MONGODB_URI = "mongodb://root:root@127.0.0.1/local"
+    MONGODB_URI = "mongodb://127.0.0.1/admin"
 MONGO_CLIENT = AsyncIOMotorClient(MONGODB_URI, server_api=ServerApi('1'))
 
 async def establish_env():
@@ -32,8 +36,13 @@ async def pingServer():
     try:
         await MONGO_CLIENT.admin.command("ping")
         print("Pinged the deployment, successfully connected to MongoDB!")
+
+        available_db = []
+        print("Are available to the user, the following databases:", end=" ")
         for db_info in await MONGO_CLIENT.list_database_names():
-            print(db_info)
+            available_db.append(db_info)
+
+        print(", ".join(available_db) + ".")
     except Exception as e:
         print(e)
 
@@ -46,9 +55,28 @@ async def getData():
     except Exception as err:
         print("Issue here:", err)
 
+async def mainScript():
+    test_db = "test-all"
+
+    os.system("cls")
+    await pingServer()
+    f_db = await createDB(MONGO_CLIENT, test_db)
+    print("The result of the creation is:", f_db)
+    print("The result of the deletion is:", await deleteDB(MONGO_CLIENT, test_db))
+
+    creation_status, db = await createDB(MONGO_CLIENT, test_db)
+    test_collection = await createCollection(db, "users")
+    await insertIntoCollection(test_collection, {
+        "name": "test-user",
+        "pwd": "test",
+        "roles": []
+    })
+    await listCurrentCollections(db)
+    await createUser(db, "test-user", "test", [])
+
 if __name__ == "__main__":
     print("Started the Async Server, trying to access the MongoDB at the following address:", MONGODB_URI)
     try:
-        asyncio.run(pingServer())
+        asyncio.run(mainScript())
     except KeyboardInterrupt:
         exit()

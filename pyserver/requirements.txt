@@ -4,3 +4,4 @@ uvicorn[standard]
 pymongo[srv]
 python-dotenv
 motor
+motor-stubs
