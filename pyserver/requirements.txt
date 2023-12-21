@@ -1,0 +1,7 @@
+websockets
+fastapi
+uvicorn[standard]
+pymongo[srv]
+python-dotenv
+motor
+motor-stubs
