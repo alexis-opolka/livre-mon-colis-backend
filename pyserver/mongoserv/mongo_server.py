@@ -30,7 +30,6 @@ async def establish_env():
         os.environ['MONGO_CLIENT'] = AsyncIOMotorClient(MONGODB_URI, server_api=ServerApi('1'))
 
 async def pingServer():
-
     global MONGO_CLIENT
 
     try:
@@ -51,14 +50,12 @@ async def getData():
     global MONGO_CLIENT
 
     try:
-        await MONGO_CLIENT.admin
+        await MONGO_CLIENT.admin.command()
     except Exception as err:
         print("Issue here:", err)
 
 async def mainScript():
     test_db = "test-all"
-
-    os.system("cls")
     await pingServer()
     f_db = await createDB(MONGO_CLIENT, test_db)
     print("The result of the creation is:", f_db)
@@ -75,6 +72,7 @@ async def mainScript():
     await createUser(db, "test-user", "test", [])
 
 if __name__ == "__main__":
+    os.system("cls")
     print("Started the Async Server, trying to access the MongoDB at the following address:", MONGODB_URI)
     try:
         asyncio.run(mainScript())
