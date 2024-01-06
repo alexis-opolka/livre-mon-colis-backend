@@ -7,35 +7,74 @@ from dotenv import load_dotenv
 
 from typing import Union
 
-from .connections.setter.database import (
-    createDB as __createDB,
-    deleteDB as __deleteDB
-)
-from .connections.setter.collections import (
-    createCollection as __createCollection,
-    insertIntoCollection as __insertIntoCollection,
-)
-from .connections.setter.users import (
-    createUser as __createUser,
-    createUserDocument as __createUserDocument,
-    deleteUser as __deleteUser
-)
+if __name__ == "mongoserv":
 
-from .connections.getter.database import (
-    getIfDatabaseExists as __getIfDatabaseExists,
-    getDB as __getDB
-)
-from .connections.getter.users import (
-    getIfUserExists as __getIfUserExists
-)
-from .connections.getter.collections import (
-    getIfCollectionExists as __getIfCollectionExists,
-    getCollection as __getCollection,
-    listCurrentCollections as __listCurrentCollections
-)
-from .connections.getter.documents import (
-    getIfDocumentExists as __getIfDocumentExists
-)
+    ### We're running the script as a module from another file
+
+    from .connections.setter.database import (
+        createDB as __createDB,
+        deleteDB as __deleteDB
+    )
+    from .connections.setter.collections import (
+        createCollection as __createCollection,
+        insertIntoCollection as __insertIntoCollection,
+    )
+    from .connections.setter.users import (
+        createUser as __createUser,
+        createUserDocument as __createUserDocument,
+        deleteUser as __deleteUser
+    )
+
+    from .connections.getter.database import (
+        getIfDatabaseExists as __getIfDatabaseExists,
+        getDB as __getDB
+    )
+    from .connections.getter.users import (
+        getIfUserExists as __getIfUserExists
+    )
+    from .connections.getter.collections import (
+        getIfCollectionExists as __getIfCollectionExists,
+        getCollection as __getCollection,
+        listCurrentCollections as __listCurrentCollections
+    )
+    from .connections.getter.documents import (
+        getIfDocumentExists as __getIfDocumentExists
+    )
+
+elif __name__ == "__main__":
+
+    ### We're running the script as the main python file
+
+    from connections.setter.database import (
+        createDB as __createDB,
+        deleteDB as __deleteDB
+    )
+    from connections.setter.collections import (
+        createCollection as __createCollection,
+        insertIntoCollection as __insertIntoCollection,
+    )
+    from connections.setter.users import (
+        createUser as __createUser,
+        createUserDocument as __createUserDocument,
+        deleteUser as __deleteUser
+    )
+
+    from connections.getter.database import (
+        getIfDatabaseExists as __getIfDatabaseExists,
+        getDB as __getDB
+    )
+    from connections.getter.users import (
+        getIfUserExists as __getIfUserExists
+    )
+    from connections.getter.collections import (
+        getIfCollectionExists as __getIfCollectionExists,
+        getCollection as __getCollection,
+        listCurrentCollections as __listCurrentCollections
+    )
+    from connections.getter.documents import (
+        getIfDocumentExists as __getIfDocumentExists
+    )
+
 
 
 load_dotenv()
@@ -111,10 +150,16 @@ async def helloWorld():
 
 ### User-Area
 
-async def createUser(database_name: str, username: str, user_pwd: str, user_roles: Union[list, tuple, str], encrypted: bool = False) -> bool:
+async def createUser(database_name: str, username: str, user_pwd: str, user_roles: Union[list, tuple, str], encrypted: bool = False, key: str = None, iv: str = None) -> bool:
 
     ### Development ONLY
     DEBUG = True
+
+
+    if DEBUG:
+        print(os.get_terminal_size()[0]*"-")
+        print("USER PASSWORD:", user_pwd, "ENCRYPTED ?", encrypted, "KEY:", key)
+        print(os.get_terminal_size()[0]*"-")
 
     ### To create a user in mongoDB, we need to
     ###     - create the `database` where it will be created
@@ -178,6 +223,6 @@ if __name__ == "__main__":
     os.system("cls")
     print("Started the Async Server, trying to access the MongoDB at the following address:", MONGODB_URI)
     try:
-        asyncio.run(mainScript())
+        asyncio.run(createUser("users", "test", "198,135,141,225,104,62,52,94,159,155,249,91,172,190,53,77,254,217,241,142,160,47,128,204,24,179,180,194,253,172,178,3,199,15,200,228,187,253,7,212,213,243,129,219,29,59,80,52", "user", True, "o5J1WshqJOCVqIJa5t3DLaM7J7BPuNYIgiwMrTliHWo"))
     except KeyboardInterrupt:
         exit()

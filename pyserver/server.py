@@ -35,12 +35,15 @@ async def getUser(user_id: int):
 @app.post("/api/user/create/")
 async def postUser(form: Request):
 
+    print("CALLED:", "/api/user/create")
+
     data = await form.json()
     print(f"Body: {data['username']}, {data['password']}, {data['roles']}")
 
     username, password, roles = data['username'], data['password'], data['roles']
 
     result = await mongo.createUser("users", username, password, roles)
+
 
     if result is True:
         return JSONResponse({
