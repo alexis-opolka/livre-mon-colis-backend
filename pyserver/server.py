@@ -28,9 +28,16 @@ async def helloWorld():
     })
 
 ### User Area
-@app.get("/api/user/{user_id}")
-async def getUser(user_id: int):
-    return JSONResponse(IS_USER_CONNECTED)
+@app.get("/api/user/{username}")
+async def getUser(username: str):
+    print("CALLED: /api/user/\{username\}")
+
+    content = await mongo.getUser(username)
+    print("User content:", content)
+
+    return JSONResponse({
+        "content": content
+    }, status_code=200)
 
 @app.post("/api/user/create/")
 async def postUser(form: Request):
