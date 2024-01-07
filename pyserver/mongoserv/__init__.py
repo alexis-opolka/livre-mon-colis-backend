@@ -222,7 +222,7 @@ async def createUser(database_name: str, username: str, user_pwd: str, user_role
     user_data = {
         "username": username,
         ### We're encrypting the password if it's not already the case
-        "password": user_pwd if encrypted else sha256(user_pwd.encode("utf-8")).hexdigest(),
+        "password": user_pwd,
         "roles": user_roles 
     }
 

@@ -1,0 +1,4 @@
+DEBUG:root:ROUTE: `/api/user/create`
+INFO:root:Data Content: {'username': 'test', 'password': 'test', 'roles': 'admin'}
+DEBUG:root:ROUTE: `/api/user/create`
+INFO:root:Data Content: {'username': 'test', 'password': 'test', 'roles': 'admin'}

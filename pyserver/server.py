@@ -1,5 +1,7 @@
 #! /bin/env python3
 
+import logging
+
 from fastapi import FastAPI, WebSocket, Request
 from fastapi.responses import JSONResponse
 from datamodels import UserCreationForm
@@ -9,18 +11,25 @@ from typing import Union, Any
 ### We should be calling the external mongoDB driver to handle MongoDB-related requests
 import mongoserv as mongo
 
+### We configure the logging util
+logging.basicConfig(filename="./livre-mon-colis.log", encoding="utf-8", level=logging.DEBUG)
 
 app = FastAPI()
 
 
 @app.get("/")
 async def get():
+
+    logging.debug("ROUTE: `/`")
+
     return JSONResponse(BASE_RESPONSE, status_code=200, headers={
         "application/type": "text/json"
     })
 
 @app.get("/hello-world")
 async def helloWorld():
+    logging.debug("ROUTE: `/hello-world`")
+
     return JSONResponse({
         "content": await mongo.helloWorld()
     }, status_code=200, headers={
@@ -30,7 +39,7 @@ async def helloWorld():
 ### User Area
 @app.get("/api/user/{username}")
 async def getUser(username: str):
-    print("CALLED: /api/user/\{username\}")
+    logging.debug("ROUTE: `/api/user/\{username\}`")
 
     content = await mongo.getUser(username)
     print("User content:", content)
@@ -42,10 +51,11 @@ async def getUser(username: str):
 @app.post("/api/user/create/")
 async def postUser(form: Request):
 
-    print("CALLED:", "/api/user/create")
+    logging.debug("ROUTE: `/api/user/create`")
 
     data = await form.json()
     print(f"Body: {data['username']}, {data['password']}, {data['roles']}")
+    logging.info(f"Data Content: {data}")
 
     username, password, roles = data['username'], data['password'], data['roles']
 
