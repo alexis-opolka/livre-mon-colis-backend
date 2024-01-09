@@ -1,7 +1,7 @@
 from typing import Union
 from motor.core import AgnosticCollection, AgnosticDatabase
 
-async def createCollection(database: AgnosticDatabase, collection_name: str) :
+async def createCollection(database: AgnosticDatabase, collection_name: str) -> AgnosticCollection:
   return await database.create_collection(collection_name)
 
 async def deleteCollection(database: AgnosticDatabase, collection_name: str) -> AgnosticCollection:
@@ -28,10 +28,3 @@ async def removeFromCollection(collection: AgnosticCollection, data_to_remove: U
     collection.delete_many(data_to_remove)
   else:
     collection.delete_one(data_to_remove)
-
-async def listCurrentCollections(database: AgnosticDatabase):
-  collections = []
-  for collection_name in await database.list_collection_names():
-    collections.append(collection_name)
-
-  print(", ".join(collections))
