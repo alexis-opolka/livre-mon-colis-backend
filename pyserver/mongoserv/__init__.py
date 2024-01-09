@@ -1,12 +1,13 @@
-from hashlib import sha256
 import os
 import asyncio
+from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorClient
 from pymongo.server_api import ServerApi
 from dotenv import load_dotenv
 
 from typing import Union
 
+from logs import log
 ### -----------------------------------------------------------
 ###
 ###  As I did not found a way to dynamically import the modules
@@ -40,6 +41,10 @@ if __name__ == "mongoserv":
         createUserDocument as __createUserDocument,
         deleteUser as __deleteUser,
     )
+    from .connections.setter.documents import (
+        createDocument as __createDocument,
+        updateDocument as __updateDocument
+    )
 
     from .connections.getter.database import (
         getIfDatabaseExists as __getIfDatabaseExists,
@@ -47,7 +52,6 @@ if __name__ == "mongoserv":
     )
     from .connections.getter.users import (
         getIfUserExists as __getIfUserExists,
-        getUser as __getUser,
     )
     from .connections.getter.collections import (
         getIfCollectionExists as __getIfCollectionExists,
@@ -55,7 +59,11 @@ if __name__ == "mongoserv":
         listCurrentCollections as __listCurrentCollections,
     )
     from .connections.getter.documents import (
-        getIfDocumentExists as __getIfDocumentExists,
+        getIfUserDocumentExists as __getIfUserDocumentExists,
+        getUserDocument as __getUserDocument,
+        getIfDocumentExists as __getIfDocumentsExists,
+        getDocument as __getDocument,
+        getAllDocuments as __getAllDocuments
     )
 
 elif __name__ == "__main__":
@@ -89,7 +97,9 @@ elif __name__ == "__main__":
         listCurrentCollections as __listCurrentCollections
     )
     from connections.getter.documents import (
-        getIfDocumentExists as __getIfDocumentExists
+        getIfUserDocumentExists as __getIfUserDocumentExists,
+        getUserDocument as __getUserDocument,
+        getAllDocuments as __getAllDocuments,
     )
 
 
@@ -130,15 +140,6 @@ async def pingServer():
         return available_db
     except Exception as e:
         print(e)
-
-async def getData():
-
-    global MONGO_CLIENT
-
-    try:
-        await MONGO_CLIENT.admin.command()
-    except Exception as err:
-        print("Issue here:", err)
 
 async def mainScript():
     test_db = "test-all"
@@ -227,33 +228,339 @@ async def createUser(database_name: str, username: str, user_pwd: str, user_role
     }
 
     ### Let's check if it already exists
-    if not await __getIfDocumentExists(current_collection, user_data):
+    if not await __getIfUserDocumentExists(current_collection, user_data):
         ### If it doesn't exist, let's create the document
 
         await __createUserDocument(current_collection, user_data)
 
+    ### Now that all our user-related work has been done,
+    ### we can create a `glossary` of the related database
+    ### for each user.
+    if not await __getIfDatabaseExists(MONGO_CLIENT, "users"):
+        _, db = await __createDB(MONGO_CLIENT, "users")
+    else:
+        db = await __getDB(MONGO_CLIENT, "users")
+    
+    if not await __getIfCollectionExists(db, "glossary"):
+        glossary = await __createCollection(db, "glossary")
+    else:
+        glossary = await __getCollection(db, "glossary")
+
+    
+    user_glossary = {
+        "username": username,
+        "db": user_roles[0] if isinstance(user_roles, (list, tuple)) else user_roles
+    }
+
+    if not await __getIfDocumentsExists(glossary, user_glossary, "username"):
+        await __createDocument(glossary, user_glossary)
+
+    log(f"Should have the glossary for {username}!")
+
     return True
 
 
-async def getUser(username: str) -> dict:
+async def getUserDocument(username: str, password: str) -> Union[dict, None]:
 
-    db = await __getDB(MONGO_CLIENT, PRIVATE_USER_COLLECTION)
+    user_db = None
 
-    if await __getIfUserExists(db, username):
-        user_data = await __getUser(db, username)
-        print("USER DATA:", user_data)
+    if await __getIfDatabaseExists(MONGO_CLIENT, "users"):
+        glossary_db = await __getDB(MONGO_CLIENT, "users")
+
+        if await __getIfCollectionExists(glossary_db, "glossary"):
+            glossary_collection = await __getCollection(glossary_db, "glossary")
+        
+            if await __getIfDocumentsExists(glossary_collection, {"username": username}, "username"):
+                document = await __getDocument(glossary_collection, {"username": username}, "username")
+
+                user_db = document["db"]
+
+    if user_db is not None:
+
+        db = await __getDB(MONGO_CLIENT, user_db)
+        collection = await __getCollection(db, PRIVATE_USER_COLLECTION)
+
+        user_data = await __getUserDocument(collection, username)
+
+        if user_data["password"] == password:
+            return user_data
+
+    return None
+
+async def getUserObjectId(username: str) -> Union[ObjectId, None]:
+    user_object_id = None
+    user_db = None
+
+    if await __getIfDatabaseExists(MONGO_CLIENT, "users"):
+        glossary_db = await __getDB(MONGO_CLIENT, "users")
+
+        if await __getIfCollectionExists(glossary_db, "glossary"):
+            glossary_collection = await __getCollection(glossary_db, "glossary")
+
+            if await __getIfDocumentsExists(glossary_collection, {"username": username}, "username"):
+                document = await __getDocument(glossary_collection, {"username": username}, "username")
+
+                user_db = document["db"]
+
+    if user_db is not None:
+        db = await __getDB(MONGO_CLIENT, user_db)
+        collection = await __getCollection(db, PRIVATE_USER_COLLECTION)
+
+        user_data = await __getUserDocument(collection, username)
+
+
+        if "_id" in user_data:
+            user_object_id = user_data["_id"]
+
+    return user_object_id
+
+
+## Package Area
+
+async def getPackage(package_id: int):
+    result = {}
+
+    if await __getIfDatabaseExists(MONGO_CLIENT, "packages"):
+        db = await __getDB(MONGO_CLIENT, "packages")
+
+        if await __getIfCollectionExists(db, "store"):
+            collection = await __getCollection(db, "store")
+
+            package = ObjectId(package_id)
+            doc_filter = {
+                "_id": package
+            }
+
+            log(f"[getPackage] (document filter) --> {doc_filter}")
+
+            if await __getIfDocumentsExists(collection, doc_filter, "_id"):
+                result = await __getDocument(collection, doc_filter, "_id")
+
+    return result
+
+### User-Defined Methods
+### Seller Area
+async def createPackage(seller: str, carrier: str, client: str):
+    ### 1 - Get the seller ObjectId from its name
+    ### 2 - Get the carrier ObjectId from its name
+    ### 3 - Get the client ObjectId from its name
+
+    seller_id = await getUserObjectId(seller)
+    carrier_id = await getUserObjectId(carrier)
+    client_id = await getUserObjectId(client)
+
+    log(f"[New Package] - IDs (seller,carrier,client): {seller_id},{carrier_id},{client_id}")
+
+    package_id = await __createPackage(seller_id, carrier_id, client_id)
+    log(f"[New Package] - Package ID: {package_id}")
+
+async def getPackagesFromSeller(seller_name: str):
+    result = []
+
+    if await __getIfDatabaseExists(MONGO_CLIENT, "packages"):
+        db = await __getDB(MONGO_CLIENT, "packages")
+
+        if await __getIfCollectionExists(db, "glossary"):
+            collection = await __getCollection(db, "glossary")
+
+            ### Let's get the User ObjectId
+            user_objId = await getUserObjectId(seller_name)
+
+            if await __getIfDocumentsExists(collection, {
+                "seller": user_objId
+            }, "seller"):
+                result = await __getDocument(collection, {
+                    "seller": user_objId
+                }, "seller")
+
+                log(f"[getPackagesFromSeller] (Packages) - {result['packages']}")
+
+    return result['packages']
+
+async def getUserDocumentFromId(user_id: str):
+    result = {}
+
+    if await __getIfDatabaseExists(MONGO_CLIENT, "users"):
+        db = await __getDB(MONGO_CLIENT, "users")
+
+        if await __getIfCollectionExists(db, "glossary"):
+            glossary = await __getCollection(db, "glossary")
+
+            doc_filter = {
+                "_id": ObjectId(user_id)
+            }
+
+            log(f"[getUserDocumentFromId] (Result) --> {result}")
+
+            if await __getIfDocumentsExists(glossary, doc_filter, "_id"):
+                result = await __getDocument(glossary, doc_filter, "_id")
+
+    log(f"[getUserDocumentFromId] (Result) --> {result}")
+
+    return result
+
+### Carrier Area
+async def createParcelDelivery(vehicle: int, packages: Union[list, tuple]):
+    ...
+
+async def updateParcelDeliveryStatus(parcel_delivery_id: int, new_status: dict):
+    ...
+
+async def setPackageDeliveryStatus(package_id: int, status: str):
+    ...
+
+### Client Area
+async def validatePackageDelivery(package_id: int):
+    ...
+
+### Internal methods
+async def __createPackage(seller_id: ObjectId, carrier_id: ObjectId, client_id: ObjectId) -> ObjectId:
+    ### 3 Dimensions: hauteur/largeur/longueur
+    ### States: emballe/arrive/depart/livre/recu
+    ### known facts:
+    ###     - seller
+    ###     - carrier
+    ###     - client (name, address, zip-code, town, mail, phone)
+    
+    ### 1 - Create or get the PACKAGES_DB database inside MongDB
+    ### 2 - Create or get the Collection
+    ### 3 - Create the package document with all required data
+    ### 4 - Somehow get the ObjectID and return it
+
+    ### Create or get the PACKAGES_DB database
+    if await __getIfDatabaseExists(MONGO_CLIENT, PACKAGES_DB):
+        ### The database already exists
+        db = await __getDB(MONGO_CLIENT, PACKAGES_DB)
     else:
-        user_data = None
+        ### The database doesn't exists yet
+        ### The `_` variable is the creation status (isn't used but should be remembered)
+        _, db = await __createDB(MONGO_CLIENT, PACKAGES_DB)
 
-    return user_data
+    ### Create or get the Collection
+    if not await __getIfCollectionExists(db, "store"):
+        collection = await __createCollection(db, "store")
+    else:
+        collection = await __getCollection(db, "store")
+
+    ### Create the package document
+    package_document = {
+        "weight": 0,
+        "dimensions": {
+            "height": 0,
+            "width": 0,
+            "lenght": 0
+        },
+        "state": {
+            "wrapped": {
+                "state": False,
+                "timestamp": None,
+            },
+            "storage-arrival": {
+                "state": False,
+                "timestamp": None,
+            },
+            "storage-departure": {
+                "state": False,
+                "timestamp": None,
+            },
+            "delivery": {
+                "state": False,
+                "timestamp": None,
+            },
+            "received": {
+                "state": False,
+                "timestamp": None,
+            }
+        },
+        "seller": seller_id,
+        "carrier": carrier_id,
+        "client": client_id
+    }
+
+    document = await __createDocument(collection, package_document)
+    log(f"DOCUMENT INSERTED: {document.inserted_id}")
+
+    ### Now that we created the document object and got its ObjectId
+    ### We're going to build up the glossary and/or update the package entry
+
+    if not await __getIfCollectionExists(db, "glossary"):
+        glossary = await __createCollection(db, "glossary")
+    else:
+        glossary = await __getCollection(db, "glossary")
+
+    glossary_package_document_search = {
+        "seller": seller_id
+    }
+
+    glossary_package_document = {
+        "seller": seller_id,
+        "packages": [
+            document.inserted_id
+        ]
+    }
+
+    if not await __getIfDocumentsExists(glossary, glossary_package_document_search, "seller"):
+        await __createDocument(glossary, glossary_package_document)
+    else:
+        await __updateDocument(glossary, glossary_package_document_search, "packages", [document.inserted_id], "insert")
+
+    glossary = await __getDocument(glossary, glossary_package_document_search, "seller")
+
+    if document is not None:
+        return document.inserted_id
+
+async def getAllCarriers() -> list:
+
+    result = []
+
+    if await __getIfDatabaseExists(MONGO_CLIENT, "carrier"):
+        db = await __getDB(MONGO_CLIENT, "carrier")
+        
+        if await __getIfCollectionExists(db, PRIVATE_USER_COLLECTION):
+            collection = await __getCollection(db, PRIVATE_USER_COLLECTION)
+
+            documents = await __getAllDocuments(collection)
+
+            if documents != []:
+                for doc in documents:
+                    log(f"[getAllCarriers](doc-looping) - DOC: {doc}")
+                    result.append(doc["username"])
+
+    log(f"[getAllCarriers] --> {result}")
 
 
+    return result
+
+async def getAllClients() -> list:
+
+    result = []
+
+    if await __getIfDatabaseExists(MONGO_CLIENT, "client"):
+        db = await __getDB(MONGO_CLIENT, "client")
+        
+        if await __getIfCollectionExists(db, PRIVATE_USER_COLLECTION):
+            collection = await __getCollection(db, PRIVATE_USER_COLLECTION)
+
+            documents = await __getAllDocuments(collection)
+
+            if documents != []:
+                for doc in documents:
+                    log(f"[getAllClients](doc-looping) - DOC: {doc}")
+                    result.append(doc["username"])
+
+    log(f"[getAllClients] --> {result}")
+
+
+    return result
+    
+
+PACKAGES_DB = "packages"
 
 
 if __name__ == "__main__":
     os.system("cls")
     print("Started the Async Server, trying to access the MongoDB at the following address:", MONGODB_URI)
     try:
-        asyncio.run(createUser("users", "test", "198,135,141,225,104,62,52,94,159,155,249,91,172,190,53,77,254,217,241,142,160,47,128,204,24,179,180,194,253,172,178,3,199,15,200,228,187,253,7,212,213,243,129,219,29,59,80,52", "user", True, "o5J1WshqJOCVqIJa5t3DLaM7J7BPuNYIgiwMrTliHWo"))
+        asyncio.run(getUserDocument("test", "test"))
     except KeyboardInterrupt:
         exit()
